@@ -5,12 +5,16 @@ Tested on a Flex 6300
 Connection to radio via FTDI USB adapter directly connected to the 6000 series radio
    details on Flex radio configuration available from Flex Radio website
 Controller must be configured to request mode to request frequency data
+
+Note:  No or Band 0 will be selected if freq falls out of range.  Adjust your band limits accordingly
+
+To do:  Ensure band controller is following active TX slice
 */
 
 while (Serial.available()) {
     rdKS="";
-    Serial.readBytesUntil(lf, rdK, 38);       // fill array from serial
-        if (rdK[0] == 73 && rdK[1] == 70){     // filter
+    Serial.readBytesUntil(lf, rdK, 14);       // fill array from serial 'lf' is defined in main code
+        if (rdK[0] == 70 && rdK[1] == 66){     // filter
             for (int i=2; i<=12; i++){          // 3-13 position to freq
                 rdKS = rdKS + String(rdK[i]);   // append variable to string
             }
