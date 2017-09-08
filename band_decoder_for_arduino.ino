@@ -56,12 +56,13 @@ Outputs
 //=====[ Inputs ]=============================================================================================
 
 // #define INPUT_SERIAL       // telnet ascii input - cvs format [band],[freq]\n (serial.h)
- #define ICOM_CIV           // read frequency from CIV (icom_civ.h) ** you must enabled 'CI-V transceive' in TRX settings **
+// #define ICOM_CIV           // read frequency from CIV (icom_civ.h) ** you must enabled 'CI-V transceive' in TRX settings **
 // #define KENWOOD_PC         // RS232 CAT (kenwood_pc.h)
 // #define YAESU_CAT          // RS232 CAT (yaesu_cat.h) YAESU CAT since 2015 ascii format
 // #define YAESU_CAT_OLD      // Old binary format RS232 CAT (yaesu_cat_old.h) <------- ** tested on FT-817 **
 // #define YAESU_BCD          // TTL BCD in A  (yaesu_bcd.h)
 // #define ICOM_ACC           // voltage 0-8V on pin4 ACC(2) connector - need calibrate in (icom_acc.h)
+// #define FLEX_RADIO.h		// RS232 USB connection to Flex radio
 
 //=====[ Outputs ]============================================================================================
 
@@ -70,14 +71,14 @@ Outputs
 // #define ICOM_CIV_OUT       // send frequency to CIV ** you must set TRX CIV_ADRESS, and disable ICOM_CIV **
 // #define KENWOOD_PC_OUT     // send frequency to RS232 CAT ** for operation must disable REQUEST **
 // #define YAESU_CAT_OUT      // send frequency to RS232 CAT ** for operation must disable REQUEST **
- #define BCD_OUT            // output 11-14 relay used as Yaesu BCD 
+// #define BCD_OUT            // output 11-14 relay used as Yaesu BCD 
 
 //=====[ Settings ]===========================================================================================
 
  #define SERBAUD        9600  // [baud] Serial port in/out baudrate
  #define WATCHDOG       10    // [sec] determines the time, after which the all relay OFF, if missed next input data - uncomment for the enabled
-// #define REQUEST            // use TXD output for sending frequency request (Kenwood PC, Yaesu CAT, Yaesu CAT old, Icom CIV)
- #define CIV_ADRESS   0x56  // CIV input HEX Icom adress (0x is prefix)
+// #define REQUEST            // use TXD output for sending frequency request (Kenwood PC, Yaesu CAT, Yaesu CAT old, Icom CIV, Flex)
+// #define CIV_ADRESS   0x56  // CIV input HEX Icom adress (0x is prefix)
 // #define CIV_ADR_OUT  0x56  // CIV output HEX Icom adress (0x is prefix)
 
 //=====[ Sets band -->  to output in MATRIX table ]===========================================================
@@ -158,9 +159,12 @@ long freq = 0;
     int previous3;
     int timeout3;
 #endif
-#if defined(KENWOOD_PC) || defined(YAESU_CAT)
-    int lf = 59;  // 59 = ;
+#if defined(KENWOOD_PC) || defined(YAESU_CAT) || defined(FLEX_RADIO)
+    int lf = 59;  // 59 = ;	// character deliminator
 #endif
+#if defined(FLEX_RADIO)
+    char rdk[37];	// read data Flex
+    String rdKS;	// read data Flex string
 #if defined(KENWOOD_PC)
     char rdK[37];   //read data kenwood
     String rdKS;    //read data kenwood string
@@ -181,7 +185,7 @@ long freq = 0;
     byte incomingByte = 0;
     int state = 1;  // state machine
 #endif
-#if defined(KENWOOD_PC_OUT) || defined(YAESU_CAT_OUT)
+#if defined(KENWOOD_PC_OUT) || defined(YAESU_CAT_OUT) || defined(FLEX_RADIO)
     long freqPrev2;
 #endif
 #if defined(BCD_OUT)
@@ -189,7 +193,7 @@ long freq = 0;
 #endif
 
 void setup() {
-    #if defined(INPUT_SERIAL) || defined(SERIAL_echo) || defined(KENWOOD_PC) || defined(ICOM_CIV) || defined(YAESU_CAT) || defined(REMOTE_RELAY)
+    #if defined(INPUT_SERIAL) || defined(SERIAL_echo) || defined(KENWOOD_PC) || defined(ICOM_CIV) || defined(YAESU_CAT) || defined(REMOTE_RELAY) || defined(FLEX_RADIO)
         Serial.begin(SERBAUD);
         Serial.setTimeout(10);
     #endif
@@ -197,7 +201,7 @@ void setup() {
         Serial.begin(SERBAUD, SERIAL_8N2);
         Serial.setTimeout(10);
     #endif
-    #if defined(KENWOOD_PC) || defined(YAESU_CAT)
+    #if defined(KENWOOD_PC) || defined(YAESU_CAT) || defined(FLEX_RADIO)
 //        CATdata.reserve(200);          // reserve bytes for the CATdata
     #endif
     analogReference(EXTERNAL);
@@ -236,6 +240,10 @@ void loop() {
     #if defined(YAESU_CAT_OLD)
         #include "yaesu_cat_old.h"
     #endif
+    #if defined(FLEX_RADIO)
+    	#include "flex_radio.h"
+    #endif
+    
     //=====[ Output Remote relay ]=======================
     #if defined(REMOTE_RELAY)
         timeout3 = millis()-previous3;                  // check timeout
@@ -251,6 +259,7 @@ void loop() {
             freqPrev1 = freq;
         }
     #endif
+    
     //=====[ Output Kenwood PC ]=====================
     #if !defined(REQUEST) && defined(KENWOOD_PC_OUT)
         if(freq != freqPrev2){                     // if change
@@ -265,6 +274,7 @@ void loop() {
            freqPrev2 = freq;
         }
     #endif
+    
     //=====[ Output Yaesu CAT ]=====================
     #if !defined(REQUEST) && defined(YAESU_CAT_OUT)
         if(freq != freqPrev2){                     // if change
@@ -290,6 +300,8 @@ void loop() {
            freqPrev2 = freq;
         }
     #endif
+    
+       
 }
 
 //=====[ Output relay ]=======================================================================================
